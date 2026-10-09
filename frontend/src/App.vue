@@ -1,5 +1,4 @@
 <script setup>
-// Import play-pause.svg
 import playPauseIcon from '/public/play-pause.svg';
 </script>
 
@@ -33,11 +32,16 @@ import playPauseIcon from '/public/play-pause.svg';
         @pointercancel="onPointerUp"
         @contextmenu.prevent
       ></div>
+      
+      <div class="setting">
+        <p><span>Volume</span> <span>{{ volume }}</span></p>
+        <input :disabled="disconnected" v-model.number="volume" type="range" min="0" max="100" @change="sendVolume" />
+      </div>
 
       <div class="input-row">
-        <button @click="openKeyboard" :disabled="status !== 'connected'">Keyboard</button>
+        <button @click="openKeyboard" :disabled="disconnected">Keyboard</button>
         <div class="input-row">
-          <button @click="sendKey('MediaPlayPause')">
+          <button :disabled="disconnected" @click="sendKey('MediaPlayPause')">
             <img :src="playPauseIcon" alt="Play/Pause" />
           </button>
           <button @click="openMore">More</button>
@@ -49,44 +53,40 @@ import playPauseIcon from '/public/play-pause.svg';
       <div class="content">
         <h2>Advanced keys</h2>
         <div class="input-row">
-          <button @click="sendKey('Escape')">Esc</button>
-          <button @click="sendKey('Tab')">Tab</button>
-          <button @click="sendKey('Delete')">Del</button>
+          <button :disabled="disconnected" @click="sendKey('Escape')">Esc</button>
+          <button :disabled="disconnected" @click="sendKey('Tab')">Tab</button>
+          <button :disabled="disconnected" @click="sendKey('Delete')">Del</button>
         </div>
         <div class="input-row">
-          <button @click="sendKey('ArrowUp')">↑</button>
-          <button @click="sendKey('ArrowDown')">↓</button>
-          <button @click="sendKey('ArrowLeft')">←</button>
-          <button @click="sendKey('ArrowRight')">→</button>
+          <button :disabled="disconnected" @click="sendKey('ArrowUp')">↑</button>
+          <button :disabled="disconnected" @click="sendKey('ArrowDown')">↓</button>
+          <button :disabled="disconnected" @click="sendKey('ArrowLeft')">←</button>
+          <button :disabled="disconnected" @click="sendKey('ArrowRight')">→</button>
         </div>
         <!-- most useful F keys -->
         <div class="input-row">
-          <button @click="sendKey('F5')">F5</button> <!-- refresh -->
-          <button @click="sendKey('F11')">F11</button> <!-- fullscreen -->
+          <button :disabled="disconnected" @click="sendKey('F5')">F5</button> <!-- refresh -->
+          <button :disabled="disconnected" @click="sendKey('F11')">F11</button> <!-- fullscreen -->
         </div>
 
 
         <hr>
         <h2>Shortcuts</h2>
         <div class="input-row">
-          <button @click="sendShortcut('https://google.com/')">Browser</button>
-          <button @click="sendShortcut('https://oskar-codes.github.io/zmoviesz/')">ZMOVIESZ</button>
+          <button :disabled="disconnected" @click="sendShortcut('https://google.com/')">Browser</button>
+          <button :disabled="disconnected" @click="sendShortcut('https://oskar-codes.github.io/zmoviesz/')">ZMOVIESZ</button>
         </div>
 
         <hr>
         <h2>Settings</h2>
         <div class="settings">
-          <div>
-            <p><span>Volume</span> <span>{{ volume }}</span></p>
-            <input v-model.number="volume" type="range" min="0" max="100" @change="sendVolume" />
-          </div>
-          <div>
+          <div class="setting">
             <p><span>Mouse Sensitivity</span> <span>{{ sensitivity }}</span></p>
-            <input v-model.number="sensitivity" step="0.5" type="range" min="1" max="15" />
+            <input :disabled="disconnected" v-model.number="sensitivity" step="0.5" type="range" min="1" max="15" />
           </div>
-          <div>
+          <div class="setting">
             <p><span>Scroll Sensitivity</span> <span>{{ scrollSensitivity }}</span></p>
-            <input v-model.number="scrollSensitivity" step="0.5" type="range" min="0.5" max="5" />
+            <input :disabled="disconnected" v-model.number="scrollSensitivity" step="0.5" type="range" min="0.5" max="5" />
           </div>
         </div>
   
@@ -220,13 +220,17 @@ div.more .settings {
   gap: 10px;
 }
 
-div.more .settings p {
+.setting {
+  width: 100%;
+}
+
+.setting p {
   display: flex;
   justify-content: space-between;
   margin: 0;
 }
 
-div.more .settings input[type="range"] {
+input[type="range"] {
   width: 100%;
 }
 
@@ -245,7 +249,7 @@ export default {
     return {
       typed: "",  // last known value of the hidden input, to diff against
       moreOpen: false,
-      volume: 50,
+      volume: 100,
       sensitivity: 4,
       scrollSensitivity: 1
     };
@@ -260,6 +264,9 @@ export default {
   computed: {
     status() {
       return connectionStatus.value;
+    },
+    disconnected() {
+      return this.status !== "connected";
     }
   },
   methods: {

@@ -8,7 +8,10 @@ export function sendMessage(obj) {
 }
 
 export function registerMessageHandler(handler) {
-  if (!ws) throw new Error("WebSocket not connected yet");
+  if (!ws) {
+    console.error("WebSocket not connected yet");
+    return;
+  }
   ws.onmessage = (e) => {
     const data = JSON.parse(e.data);
     handler(data);
