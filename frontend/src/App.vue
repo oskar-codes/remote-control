@@ -1,10 +1,10 @@
 <script setup>
-import playPauseIcon from '/public/play-pause.svg';
-import focusIcon from '/public/focus.svg';
-import closeIcon from '/public/close.svg';
-import leftIcon from '/public/left.svg';
-import rightIcon from '/public/right.svg';
-import plusIcon from '/public/plus.svg';
+import playPauseIcon from './assets/play-pause.svg';
+import focusIcon from './assets/focus.svg';
+import closeIcon from './assets/close.svg';
+import leftIcon from './assets/left.svg';
+import rightIcon from './assets/right.svg';
+import plusIcon from './assets/plus.svg';
 </script>
 
 <template>
