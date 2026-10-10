@@ -1,5 +1,10 @@
 <script setup>
 import playPauseIcon from '/public/play-pause.svg';
+import focusIcon from '/public/focus.svg';
+import closeIcon from '/public/close.svg';
+import leftIcon from '/public/left.svg';
+import rightIcon from '/public/right.svg';
+import plusIcon from '/public/plus.svg';
 </script>
 
 <template>
@@ -38,6 +43,25 @@ import playPauseIcon from '/public/play-pause.svg';
         <input :disabled="disconnected" v-model.number="volume" type="range" min="0" max="100" @change="sendVolume" />
       </div>
 
+      <!-- <div class="input-row">
+      </div> -->
+      <div class="input-row">
+        <button :disabled="disconnected" @click="sendCommand('focus_address_bar')">
+          <img :src="focusIcon" alt="Focus" />
+        </button>
+        <button :disabled="disconnected" @click="sendCommand('close_tab')">
+          <img :src="closeIcon" alt="Close" />
+        </button>
+        <button :disabled="disconnected" @click="sendCommand('new_tab')">
+          <img :src="plusIcon" alt="New Tab" />
+        </button>
+        <button :disabled="disconnected" @click="sendCommand('switch_window_back')">
+          <img :src="leftIcon" alt="Left" />
+        </button>
+        <button :disabled="disconnected" @click="sendCommand('switch_window')">
+          <img :src="rightIcon" alt="Right" />
+        </button>
+      </div>
       <div class="input-row">
         <button @click="openKeyboard" :disabled="disconnected">Keyboard</button>
         <div class="input-row">
@@ -121,8 +145,9 @@ div.inputs {
 }
 
 div.input-row img {
-  width: 2.5em;
-  height: 2.5em;
+  width: 50%;
+  height: 50%;
+  aspect-ratio: 1/1;
 }
 
 div.input-row {
@@ -305,6 +330,12 @@ export default {
       sendMessage({
         type: 'volume',
         value: this.volume
+      })
+    },
+    sendCommand(name) {
+      sendMessage({
+        type: 'command',
+        name
       })
     },
     // Mobile keyboards mostly report "Unidentified" on keydown and can edit whole

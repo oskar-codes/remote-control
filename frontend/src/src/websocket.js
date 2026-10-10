@@ -7,19 +7,14 @@ export function sendMessage(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
 
+// Stored rather than set on the socket, so it survives reconnects (each one creates a new socket)
 export function registerMessageHandler(handler) {
-  if (!ws) {
-    console.error("WebSocket not connected yet");
-    return;
-  }
-  ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    handler(data);
-  };
+  messageHandler = handler;
 }
 
 let ws;
 let retryDelay = 500;
+let messageHandler = null;
 
 function connect() {
   connectionStatus.value = "connecting";
@@ -32,7 +27,8 @@ function connect() {
   };
   ws.onmessage = (e) => {
     const data = JSON.parse(e.data);
-    console.log(data);
+    if (messageHandler) messageHandler(data);
+    else console.log(data);
   };
   ws.onclose = () => {
     console.log(`disconnected, retrying in ${retryDelay} ms`);

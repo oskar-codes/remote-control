@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import webbrowser
+import socket
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,6 +38,20 @@ KEYS = {
     "MediaPlayPause": Key.media_play_pause,
 }
 BUTTONS = {"left": Button.left, "right": Button.right}
+
+# Modifier most shortcuts use, and the one held to switch windows (Cmd for both on macOS)
+PRIMARY = Key.cmd if sys.platform == "darwin" else Key.ctrl
+SWITCHER = Key.cmd if sys.platform == "darwin" else Key.ctrl
+
+# Pre-written shortcuts the frontend triggers by name: every key but the last is held
+# down while the last one is tapped. Add new ones here and send their name from a button.
+COMMANDS = {
+    "new_tab": (PRIMARY, "t"),
+    "focus_address_bar": (PRIMARY, "l"),
+    "close_tab": (PRIMARY, "w"),
+    "switch_window": (SWITCHER, Key.tab),
+    "switch_window_back": (Key.shift, SWITCHER, Key.tab),
+}
 
 # On macOS and Linux pynput drops the fractional part of scroll steps, so leftovers
 # are kept here and added to the next scroll instead of being lost
@@ -88,6 +103,10 @@ def handle_event(data):
                 keyboard.tap(KEYS[key])
             elif len(key) == 1:
                 keyboard.type(key)
+        case "command":
+            *modifiers, key = COMMANDS[data["name"]]
+            with keyboard.pressed(*modifiers):  # releases the modifiers even if the tap fails
+                keyboard.tap(key)
         case "click":
             mouse.click(BUTTONS[data["button"]])
         case "move":
@@ -115,7 +134,6 @@ async def ws_handler(request):
     await ws.prepare(request)
     speakers = AudioUtilities.GetSpeakers()
     if speakers is not None:
-        logging.info("Sending initial volume")
         await ws.send_json({"type": "volume", "value": round(speakers.EndpointVolume.GetMasterVolumeLevelScalar() * 100)})
 
     async for msg in ws:  # loops until the client disconnects
@@ -123,6 +141,19 @@ async def ws_handler(request):
             handle_event(msg.json())
     return ws
 
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('8.8.8.8', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+print(f"Server starting at http://{get_ip()}:{PORT}")
 
 app.router.add_get("/", index)
 app.router.add_static("/assets", WEB_DIR / "assets")
