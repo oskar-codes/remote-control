@@ -8,16 +8,19 @@ import subprocess
 import sys
 import webbrowser
 import socket
+import argparse
 
 logging.basicConfig(level=logging.INFO)
 
 if sys.platform == "win32":
     from pycaw.pycaw import AudioUtilities  # Windows-only
 
-PORT = 8000
-WEB_DIR = Path(__file__).parent / "frontend" / "dist"
+PORT_DEFAULT = 8000
+WEB_DIR_DEFAULT = Path(__file__).parent / "frontend" / "dist"
 # Pixels of finger movement per scroll step: a wheel notch on Windows and Linux, 10 px on macOS
 SCROLL_STEP = 10 if sys.platform == "darwin" else 30
+
+web_dir = WEB_DIR_DEFAULT
 
 keyboard = KeyboardController()
 mouse = MouseController()
@@ -57,7 +60,6 @@ COMMANDS = {
 # are kept here and added to the next scroll instead of being lost
 scroll_leftover = {"x": 0.0, "y": 0.0}
 
-
 def whole_steps(axis, steps):
     total = scroll_leftover[axis] + steps
     scroll_leftover[axis] = total - int(total)
@@ -65,8 +67,6 @@ def whole_steps(axis, steps):
 
 
 volume_process = None
-
-
 def set_volume(percent):
     global volume_process
     percent = max(0, min(100, round(float(percent))))  # also keeps arbitrary input out of the commands below
@@ -123,10 +123,9 @@ def handle_event(data):
         case "volume":
             set_volume(data["value"])
 
-app = web.Application()
 
 async def index(_: web.Request) -> web.FileResponse:
-	return web.FileResponse(WEB_DIR / "index.html")
+	return web.FileResponse(web_dir / "index.html")
 
 
 async def ws_handler(request):
@@ -153,9 +152,39 @@ def get_ip():
         s.close()
     return IP
 
-print(f"Server starting at http://{get_ip()}:{PORT}")
 
-app.router.add_get("/", index)
-app.router.add_static("/assets", WEB_DIR / "assets")
-app.router.add_get("/ws", ws_handler)
-web.run_app(app, host="", port=PORT)
+def main(port, web_dir_relative, password):
+    global app, web_dir
+
+    web_dir = Path(web_dir_relative).resolve()
+
+    app = web.Application()
+    print(f"Server starting at http://{get_ip()}:{port}")
+
+    app.router.add_get("/", index)
+    app.router.add_static("/assets", web_dir / "assets")
+    app.router.add_get("/ws", ws_handler)
+    web.run_app(app, host="", port=port)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Remote Control Server")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=PORT_DEFAULT,
+        help="Port to run the server on (default: 8000)",
+    )
+    parser.add_argument(
+        "--web-dir",
+        type=str,
+        default=WEB_DIR_DEFAULT,
+        help="Directory containing the frontend web files (default: frontend/dist)",
+    )
+    parser.add_argument(
+        "--password",
+        type=str,
+        default="", # No password by default
+        help="Password for connecting to the server",
+    )
+    args = parser.parse_args()
+    main(args.port, args.web_dir, args.password)
