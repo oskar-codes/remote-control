@@ -73,7 +73,7 @@ import plusIcon from './assets/plus.svg';
       </div>
     </div>
 
-    <div class="more" v-if="moreOpen">
+    <div class="modal" v-if="moreOpen">
       <div class="content">
         <h2>Advanced keys</h2>
         <div class="input-row">
@@ -117,6 +117,19 @@ import plusIcon from './assets/plus.svg';
         <button @click="closeMore">Close</button>
       </div>
     </div>
+
+    <Transition name="fade">
+      <div class="modal" v-if="showPasswordPrompt">
+        <div class="content">
+          <h2>Password Required</h2>
+          <p>Please enter the password to connect to the remote control.</p>
+          <p v-if="passwordRejected">That password didn't work, it may have changed on the server.</p>
+          <input type="password" v-model="password" placeholder="Password" />
+          <button @click="submitPassword">Submit</button>
+        </div>
+      </div>
+    </Transition>
+
   </main>
 </template>
 
@@ -218,7 +231,7 @@ div.trackpad {
   font-size: 16px; /* iOS zooms the page when focusing inputs smaller than 16px */
 }
 
-div.more {
+div.modal {
   position: fixed;
   overflow-y: scroll;
   top: 0;
@@ -232,7 +245,7 @@ div.more {
   align-items: center;
 }
 
-div.more .content {
+div.modal .content {
   width: 80%;
   margin: auto 0;
   display: flex;
@@ -241,7 +254,7 @@ div.more .content {
   padding: 1em;
 }
 
-div.more .settings {
+div.modal .settings {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -264,7 +277,7 @@ input[type="range"] {
 </style>
 
 <script>
-import { sendMessage, connectionStatus, registerMessageHandler } from "./src/websocket.js";
+import { sendMessage, connectionStatus, authStatus, login, registerMessageHandler } from "./src/websocket.js";
 import { onPointerDown, onPointerMove, onPointerUp } from "./src/trackpad.js";
 
 // Keys that never change the input's text, so they're sent straight from keydown
@@ -284,6 +297,7 @@ export default {
       volume: 100,
       sensitivity: loadSetting("sensitivity", 4),
       scrollSensitivity: loadSetting("scrollSensitivity", 1),
+      password: "",  // what's typed in the password prompt
     };
   },
   watch: {
@@ -307,9 +321,19 @@ export default {
     },
     disconnected() {
       return this.status !== "connected";
+    },
+    showPasswordPrompt() {
+      return authStatus.value === "required" || authStatus.value === "rejected";
+    },
+    passwordRejected() {
+      return authStatus.value === "rejected";
     }
   },
   methods: {
+    submitPassword() {
+      login(this.password);
+      this.password = "";
+    },
     onPointerDown,
     onPointerMove,
     onPointerUp,

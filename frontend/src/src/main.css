@@ -25,6 +25,18 @@ button {
   font-size: 15px;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="password"] {
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 16px; /* iOS zooms the page when focusing inputs smaller than 16px */
+}
+
 body {
   min-height: 100dvh;
   color: var(--color-text);
@@ -51,4 +63,12 @@ body {
 hr {
   border: none;
   border-top: 2px solid #ddd;
+}
+
+/* Fade transition styles */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }

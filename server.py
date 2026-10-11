@@ -126,16 +126,40 @@ async def index(_: web.Request) -> web.FileResponse:
 	return web.FileResponse(web_dir / "index.html")
 
 
-async def ws_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
+async def send_volume(ws):
+    if sys.platform != "win32":  # reading the volume is only implemented on Windows so far
+        return
     speakers = AudioUtilities.GetSpeakers()
     if speakers is not None:
         await ws.send_json({"type": "volume", "value": round(speakers.EndpointVolume.GetMasterVolumeLevelScalar() * 100)})
 
+
+async def ws_handler(request, password: str = "") -> web.WebSocketResponse:
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    await ws.send_json({"type": "password_required", "required": bool(password)})
+
+    # Each connection logs in once, after that all its messages are trusted
+    authenticated = not password
+    if authenticated:
+        await send_volume(ws)
+
     async for msg in ws:  # loops until the client disconnects
-        if msg.type == WSMsgType.TEXT:
-            handle_event(msg.json())
+        if msg.type != WSMsgType.TEXT:
+            continue
+        data = msg.json()
+        if authenticated:
+            handle_event(data)
+        elif data["type"] == "password":
+            authenticated = data["password"] == password
+            if authenticated:
+                print("Password accepted, client connected.")
+                await ws.send_json({"type": "password_accepted"})
+                await send_volume(ws)
+            else:
+                print("Password rejected, client attempted to connect with incorrect password.")
+                await ws.send_json({"type": "password_rejected"})
+        # Anything else sent before logging in is ignored
     return ws
 
 def get_ip():
@@ -159,9 +183,11 @@ def main(port, web_dir_relative, password):
     app = web.Application()
     print(f"Server starting at http://{get_ip()}:{port}")
 
+    lambda_handler = lambda request: ws_handler(request, password=password)
+
     app.router.add_get("/", index)
     app.router.add_static("/assets", web_dir / "assets")
-    app.router.add_get("/ws", ws_handler)
+    app.router.add_get("/ws", lambda_handler)
     web.run_app(app, host="", port=port)
 
 if __name__ == "__main__":
