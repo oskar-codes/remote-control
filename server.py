@@ -142,8 +142,9 @@ async def send_volume(ws):
     if volume is not None:
         await ws.send_json({"type": "volume", "value": volume})
 
-def handle_event(data):
-    print(f"Received event: {data}")
+def handle_event(data, verbose=False):
+    if verbose:
+        print(f"Received event: {data}")
     match data["type"]:
         case "key":
             key = data["key"]
@@ -177,7 +178,7 @@ def handle_event(data):
 async def index(_: web.Request) -> web.FileResponse:
 	return web.FileResponse(web_dir / "index.html")
 
-async def ws_handler(request, password: str = "") -> web.WebSocketResponse:
+async def ws_handler(request, password: str = "", verbose: bool = False) -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     await ws.send_json({"type": "password_required", "required": bool(password)})
@@ -192,15 +193,17 @@ async def ws_handler(request, password: str = "") -> web.WebSocketResponse:
             continue
         data = msg.json()
         if authenticated:
-            handle_event(data)
+            handle_event(data, verbose=verbose)
         elif data["type"] == "password":
             authenticated = data["password"] == password
             if authenticated:
-                print("Password accepted, client connected.")
+                if verbose:
+                    print("Password accepted, client connected.")
                 await ws.send_json({"type": "password_accepted"})
                 await send_volume(ws)
             else:
-                print("Password rejected, client attempted to connect with incorrect password.")
+                if verbose:
+                    print("Password rejected, client attempted to connect with incorrect password.")
                 await ws.send_json({"type": "password_rejected"})
         # Anything else sent before logging in is ignored
     return ws
@@ -218,7 +221,7 @@ def get_ip():
     return IP
 
 
-def main(port, web_dir_relative, password):
+def main(port, web_dir_relative, password, verbose):
     global app, web_dir
 
     web_dir = Path(web_dir_relative).resolve()
@@ -227,10 +230,15 @@ def main(port, web_dir_relative, password):
         logging.warning("Wayland session detected: pynput sends input through X11, so it may only reach "
                         "XWayland apps or nothing at all. Log into an X11 session for full control.")
 
+    if verbose:
+        logging.getLogger().setLevel(logging.INFO)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
+
     app = web.Application()
     print(f"Server starting at http://{get_ip()}:{port}")
 
-    lambda_handler = lambda request: ws_handler(request, password=password)
+    lambda_handler = lambda request: ws_handler(request, password=password, verbose=verbose)
 
     app.router.add_get("/", index)
     app.router.add_static("/assets", web_dir / "assets")
@@ -257,5 +265,10 @@ if __name__ == "__main__":
         default="", # No password by default
         help="Password for connecting to the server (leave empty for no password, default is empty)",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose logging",
+    )
     args = parser.parse_args()
-    main(args.port, args.web_dir, args.password)
+    main(args.port, args.web_dir, args.password, args.verbose)
