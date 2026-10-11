@@ -208,7 +208,7 @@ if __name__ == "__main__":
         "--password",
         type=str,
         default="", # No password by default
-        help="Password for connecting to the server",
+        help="Password for connecting to the server (leave empty for no password, default is empty)",
     )
     args = parser.parse_args()
     main(args.port, args.web_dir, args.password)
