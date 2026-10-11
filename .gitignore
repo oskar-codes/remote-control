@@ -40,3 +40,4 @@ __screenshots__/
 
 __pycache__
 .vscode
+.venv
