@@ -125,6 +125,7 @@ main {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* the visible screen: on phones 100vh is taller while the browser toolbars show */
 }
 
 nav {
@@ -171,6 +172,7 @@ div.trackpad {
   flex: 4;
   /* no text selection or iOS long-press callout while dragging */
   user-select: none;
+  touch-action: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }

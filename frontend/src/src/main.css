@@ -11,20 +11,22 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  touch-action: none;
   user-select: none;
+  overscroll-behavior: none;  /* no bounce or pull-to-refresh */
+  touch-action: manipulation;  /* no double-tap zoom, while the More modal can still scroll */
 }
 
 button {
   border: none;
   border-radius: 10px;
   padding: 11px;
+  touch-action: none;
   color: black;
   font-size: 15px;
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   color: var(--color-text);
   background: var(--color-background);
   font-family:
