@@ -4,6 +4,8 @@ from aiohttp import web, WSMsgType
 from pynput.keyboard import Controller as KeyboardController, Key
 from pynput.mouse import Controller as MouseController, Button
 from pathlib import Path
+import os
+import re
 import subprocess
 import sys
 import webbrowser
@@ -55,6 +57,12 @@ COMMANDS = {
     "previous_tab": (Key.shift, Key.ctrl, Key.tab),
 }
 
+if sys.platform.startswith("linux"):
+    # pynput's typing of characters is ignored by many X11 apps, see x11_typing.py
+    from x11_typing import type_character
+else:
+    type_character = keyboard.type
+
 # On macOS and Linux pynput drops the fractional part of scroll steps, so leftovers
 # are kept here and added to the next scroll instead of being lost
 scroll_leftover = {"x": 0.0, "y": 0.0}
@@ -65,9 +73,15 @@ def whole_steps(axis, steps):
     return int(total)
 
 
-volume_process = None
+def run_command(command):
+    """Returns the command's output, or None if it isn't installed or fails"""
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=2, check=True).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def set_volume(percent):
-    global volume_process
     percent = max(0, min(100, round(float(percent))))  # also keeps arbitrary input out of the commands below
     if sys.platform == "win32":
         speakers = AudioUtilities.GetSpeakers()
@@ -83,15 +97,50 @@ def set_volume(percent):
         return
 
     if sys.platform == "darwin":
-        command = ["osascript", "-e", f"set volume output volume {percent}"]
-    else:
-        command = ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{percent}%"]
-    # Dragging the slider sends many updates and these commands take a moment (osascript
-    # especially), so don't wait for them: stop a still-running older one, the newest wins
-    if volume_process and volume_process.poll() is None:
-        volume_process.kill()
-    volume_process = subprocess.Popen(command)
+        run_command(["osascript", "-e", f"set volume output volume {percent}"])
+        return
 
+    # Like on Windows, 0 mutes and anything above unmutes
+    backend, _ = linux_volume()
+    mute = "1" if percent == 0 else "0"
+    if backend == "wpctl":
+        run_command(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{percent}%"])
+        run_command(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", mute])
+    elif backend == "pactl":
+        run_command(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{percent}%"])
+        run_command(["pactl", "set-sink-mute", "@DEFAULT_SINK@", mute])
+    else:
+        logging.warning("Could not set the volume: neither wpctl (PipeWire) nor pactl (PulseAudio) worked")
+
+
+def linux_volume():
+    """Returns which of wpctl (PipeWire, the default on current distros) or pactl (PulseAudio)
+    works, and the volume in percent it reads, or (None, None) if neither does. A backend only
+    counts once it reads the volume, because wpctl exits with 0 even when it fails."""
+    output = run_command(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])  # e.g. "Volume: 0.40"
+    if output and (match := re.search(r"Volume: ([\d.]+)", output)):
+        return "wpctl", round(float(match[1]) * 100)
+    output = run_command(["pactl", "get-sink-volume", "@DEFAULT_SINK@"])  # e.g. "Volume: front-left: 26214 /  40% / ..."
+    if output and (match := re.search(r"(\d+)%", output)):
+        return "pactl", int(match[1])
+    return None, None
+
+
+def get_volume():
+    """Current output volume in percent, or None if it can't be read"""
+    if sys.platform == "win32":
+        speakers = AudioUtilities.GetSpeakers()
+        return round(speakers.EndpointVolume.GetMasterVolumeLevelScalar() * 100) if speakers else None
+    if sys.platform == "darwin":
+        output = run_command(["osascript", "-e", "output volume of (get volume settings)"])
+        return int(output) if output and output.strip().isdigit() else None
+    return linux_volume()[1]
+
+
+async def send_volume(ws):
+    volume = get_volume()
+    if volume is not None:
+        await ws.send_json({"type": "volume", "value": volume})
 
 def handle_event(data):
     print(f"Received event: {data}")
@@ -101,11 +150,14 @@ def handle_event(data):
             if key in KEYS:
                 keyboard.tap(KEYS[key])
             elif len(key) == 1:
-                keyboard.type(key)
+                type_character(key)
         case "command":
             *modifiers, key = COMMANDS[data["name"]]
             with keyboard.pressed(*modifiers):  # releases the modifiers even if the tap fails
-                keyboard.tap(key)
+                if isinstance(key, str):
+                    type_character(key)
+                else:
+                    keyboard.tap(key)
         case "click":
             mouse.click(BUTTONS[data["button"]])
         case "move":
@@ -124,15 +176,6 @@ def handle_event(data):
 
 async def index(_: web.Request) -> web.FileResponse:
 	return web.FileResponse(web_dir / "index.html")
-
-
-async def send_volume(ws):
-    if sys.platform != "win32":  # reading the volume is only implemented on Windows so far
-        return
-    speakers = AudioUtilities.GetSpeakers()
-    if speakers is not None:
-        await ws.send_json({"type": "volume", "value": round(speakers.EndpointVolume.GetMasterVolumeLevelScalar() * 100)})
-
 
 async def ws_handler(request, password: str = "") -> web.WebSocketResponse:
     ws = web.WebSocketResponse()
@@ -179,6 +222,10 @@ def main(port, web_dir_relative, password):
     global app, web_dir
 
     web_dir = Path(web_dir_relative).resolve()
+
+    if sys.platform.startswith("linux") and os.environ.get("XDG_SESSION_TYPE") == "wayland":
+        logging.warning("Wayland session detected: pynput sends input through X11, so it may only reach "
+                        "XWayland apps or nothing at all. Log into an X11 session for full control.")
 
     app = web.Application()
     print(f"Server starting at http://{get_ip()}:{port}")
