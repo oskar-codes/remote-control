@@ -42,9 +42,8 @@ KEYS = {
 }
 BUTTONS = {"left": Button.left, "right": Button.right}
 
-# Modifier most shortcuts use, and the one held to switch windows (Cmd for both on macOS)
+# Modifier most shortcuts use (Cmd on macOS, Ctrl elsewhere)
 PRIMARY = Key.cmd if sys.platform == "darwin" else Key.ctrl
-SWITCHER = Key.cmd if sys.platform == "darwin" else Key.ctrl
 
 # Pre-written shortcuts the frontend triggers by name: every key but the last is held
 # down while the last one is tapped. Add new ones here and send their name from a button.
@@ -52,8 +51,8 @@ COMMANDS = {
     "new_tab": (PRIMARY, "t"),
     "focus_address_bar": (PRIMARY, "l"),
     "close_tab": (PRIMARY, "w"),
-    "switch_window": (SWITCHER, Key.tab),
-    "switch_window_back": (Key.shift, SWITCHER, Key.tab),
+    "next_tab": (Key.ctrl, Key.tab),
+    "previous_tab": (Key.shift, Key.ctrl, Key.tab),
 }
 
 # On macOS and Linux pynput drops the fractional part of scroll steps, so leftovers
@@ -122,7 +121,6 @@ def handle_event(data):
             webbrowser.open(url)
         case "volume":
             set_volume(data["value"])
-
 
 async def index(_: web.Request) -> web.FileResponse:
 	return web.FileResponse(web_dir / "index.html")

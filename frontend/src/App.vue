@@ -55,10 +55,10 @@ import plusIcon from './assets/plus.svg';
         <button :disabled="disconnected" @click="sendCommand('new_tab')">
           <img :src="plusIcon" alt="New Tab" />
         </button>
-        <button :disabled="disconnected" @click="sendCommand('switch_window_back')">
+        <button :disabled="disconnected" @click="sendCommand('previous_tab')">
           <img :src="leftIcon" alt="Left" />
         </button>
-        <button :disabled="disconnected" @click="sendCommand('switch_window')">
+        <button :disabled="disconnected" @click="sendCommand('next_tab')">
           <img :src="rightIcon" alt="Right" />
         </button>
       </div>
