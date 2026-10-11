@@ -159,9 +159,13 @@ div.inputs {
 }
 
 div.input-row img {
-  width: 50%;
-  height: 50%;
+  width: 30%;
   aspect-ratio: 1/1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
 }
 
 div.input-row {
@@ -175,6 +179,7 @@ div.input-row > * {
   flex: 1;
   flex-basis: 0;
   width: 100%;
+  position: relative;
 }
 
 div.trackpad {
