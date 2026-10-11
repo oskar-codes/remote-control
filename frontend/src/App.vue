@@ -270,6 +270,11 @@ import { onPointerDown, onPointerMove, onPointerUp } from "./src/trackpad.js";
 // Keys that never change the input's text, so they're sent straight from keydown
 const SPECIAL_KEYS = ["Enter", "Tab", "Escape", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 
+// Settings saved on the phone itself, with a default for the first visit
+function loadSetting(name, fallback) {
+  return Number(localStorage.getItem(name)) || fallback;
+}
+
 export default {
   name: "App",
   data() {
@@ -277,9 +282,17 @@ export default {
       typed: "",  // last known value of the hidden input, to diff against
       moreOpen: false,
       volume: 100,
-      sensitivity: 4,
-      scrollSensitivity: 1
+      sensitivity: loadSetting("sensitivity", 4),
+      scrollSensitivity: loadSetting("scrollSensitivity", 1),
     };
+  },
+  watch: {
+    sensitivity(value) {
+      localStorage.setItem("sensitivity", value);
+    },
+    scrollSensitivity(value) {
+      localStorage.setItem("scrollSensitivity", value);
+    }
   },
   mounted() {
     registerMessageHandler((data) => {
