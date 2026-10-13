@@ -99,7 +99,11 @@ import plusIcon from './assets/plus.svg';
         <div class="input-row">
           <button :disabled="disconnected" @click="sendShortcut('https://google.com/')">Browser</button>
           <button :disabled="disconnected" @click="sendShortcut('https://oskar-codes.github.io/zmoviesz/')">ZMOVIESZ</button>
+        </div>
+        
+        <div class="input-row">
           <button :disabled="disconnected" @click="sendShortcut('https://www.hltv.org/')">HLTV</button>
+          <button :disabled="disconnected" @click="sendShortcut('https://www.youtube.com/')">YouTube</button>
         </div>
 
         <hr>
