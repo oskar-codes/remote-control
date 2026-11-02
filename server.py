@@ -142,7 +142,7 @@ async def send_volume(ws):
     if volume is not None:
         await ws.send_json({"type": "volume", "value": volume})
 
-def handle_event(data, verbose=False):
+def handle_event(data, held, verbose=False):
     if verbose:
         print(f"Received event: {data}")
     match data["type"]:
@@ -161,6 +161,15 @@ def handle_event(data, verbose=False):
                     keyboard.tap(key)
         case "click":
             mouse.click(BUTTONS[data["button"]])
+        case "press":
+            button = BUTTONS[data["button"]]
+            mouse.press(button)
+            held.add(button)
+        case "release":
+            button = BUTTONS[data["button"]]
+            if button in held:  # not if it was already let go of, e.g. by a reconnect
+                mouse.release(button)
+                held.remove(button)
         case "move":
             mouse.move(data["dx"], data["dy"])
         case "scroll":
@@ -188,24 +197,30 @@ async def ws_handler(request, password: str = "", verbose: bool = False) -> web.
     if authenticated:
         await send_volume(ws)
 
-    async for msg in ws:  # loops until the client disconnects
-        if msg.type != WSMsgType.TEXT:
-            continue
-        data = msg.json()
-        if authenticated:
-            handle_event(data, verbose=verbose)
-        elif data["type"] == "password":
-            authenticated = data["password"] == password
+    # Mouse buttons this connection holds down for a drag, let go of if it ends mid-drag
+    held = set()
+    try:
+        async for msg in ws:  # loops until the client disconnects
+            if msg.type != WSMsgType.TEXT:
+                continue
+            data = msg.json()
             if authenticated:
-                if verbose:
-                    print("Password accepted, client connected.")
-                await ws.send_json({"type": "password_accepted"})
-                await send_volume(ws)
-            else:
-                if verbose:
-                    print("Password rejected, client attempted to connect with incorrect password.")
-                await ws.send_json({"type": "password_rejected"})
-        # Anything else sent before logging in is ignored
+                handle_event(data, held, verbose=verbose)
+            elif data["type"] == "password":
+                authenticated = data["password"] == password
+                if authenticated:
+                    if verbose:
+                        print("Password accepted, client connected.")
+                    await ws.send_json({"type": "password_accepted"})
+                    await send_volume(ws)
+                else:
+                    if verbose:
+                        print("Password rejected, client attempted to connect with incorrect password.")
+                    await ws.send_json({"type": "password_rejected"})
+            # Anything else sent before logging in is ignored
+    finally:
+        for button in held:
+            mouse.release(button)
     return ws
 
 def get_ip():

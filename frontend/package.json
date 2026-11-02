@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update": "git pull && npm run build"
   },
   "dependencies": {
     "pinia": "^4.0.3",
